@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Farm Ledger</title>
+<meta name="theme-color" content="#2F4A3C" />
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Farm Ledger" />
+<style>
+  :root {
+    --paper: #F6F5F0;
+    --ink: #2B2A26;
+    --line: #D8D4C8;
+    --panel: #FFFFFF;
+    --clover: #2F4A3C;
+    --rust: #8B4A2E;
+    --display-font: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+    --data-font: 'SF Mono', Menlo, Consolas, monospace;
+    --body-font: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--body-font);
+         padding-bottom: env(safe-area-inset-bottom); }
+  input, select, button { font-family: inherit; }
+  button { cursor: pointer; }
+
+  header.app-header { border-bottom: 1px solid var(--line); background: var(--panel);
+    padding-top: env(safe-area-inset-top); }
+  .header-inner { max-width: 1040px; margin: 0 auto; padding: 20px 20px 20px; }
+  .header-row { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .eyebrow { font-family: var(--data-font); font-size: 11px; letter-spacing: 0.14em; color: var(--rust); text-transform: uppercase; }
+  h1 { font-family: var(--display-font); font-size: 32px; margin: 4px 0 0; font-weight: 500; }
+  .stats { display: flex; gap: 24px; font-family: var(--data-font); font-size: 13px; }
+  .stat-label { color: #8A8578; }
+  .stat-value { font-size: 17px; }
+
+  .strip-container { max-width: 1040px; margin: 0 auto; padding: 0 20px 20px; }
+  nav.tabs { max-width: 1040px; margin: 0 auto; padding: 0 20px; display: flex; gap: 4px; }
+  .tab-btn { padding: 10px 16px; background: none; border: none; font-family: var(--data-font);
+    font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #8A8578; }
+
+  main { max-width: 1040px; margin: 0 auto; padding: 24px 20px 60px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 20px; }
+  .field { width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 3px; font-size: 14px; margin-top: 4px; background: var(--panel); }
+  .label { font-size: 12px; color: #6B6656; display: block; }
+  .btn-add { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--clover);
+    color: #fff; border: none; border-radius: 3px; font-size: 13px; }
+  .btn-add:disabled { background: #D8D4C8; opacity: 0.7; }
+  .btn-primary { margin-top: 6px; padding: 10px 14px; background: var(--clover); color: #fff; border: none; border-radius: 3px; font-size: 14px; }
+  .icon-btn { background: none; border: none; color: #8A8578; padding: 4px; font-size: 14px; }
+  .mono { font-family: var(--data-font); }
+
+  .expenses-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .expenses-table th { padding: 10px 14px; font-family: var(--data-font); font-size: 10px; letter-spacing: 0.08em;
+    color: #8A8578; text-transform: uppercase; border-bottom: 1px solid var(--line); text-align: left; background: #FAF9F5; }
+  .expenses-table td { padding: 10px 14px; border-bottom: 1px solid var(--line); }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(43,42,38,0.35); display: flex;
+    align-items: center; justify-content: center; padding: 16px; z-index: 50; }
+  .modal { background: var(--panel); border-radius: 6px; padding: 24px; width: 100%; max-width: 420px; border: 1px solid var(--line); }
+
+  #save-banner { display: none; margin: 0 auto 16px; max-width: 1000px; padding: 10px 14px;
+    background: #F3E4DC; color: var(--rust); font-size: 13px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-inner">
+    <div class="header-row">
+      <div>
+        <div class="eyebrow">Sedgemere · Canterbury</div>
+        <h1>Farm Ledger</h1>
+      </div>
+      <div class="stats">
+        <div style="text-align:right;">
+          <div class="stat-label">Total area</div>
+          <div class="stat-value" id="total-ha">0.0 ha</div>
+        </div>
+        <div style="text-align:right;">
+          <div class="stat-label">Spend (incl GST)</div>
+          <div class="stat-value" id="total-spend">$0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="strip-container" id="strip-wrap"></div>
+  <nav class="tabs">
+    <button class="tab-btn" data-tab="overview">Overview</button>
+    <button class="tab-btn" data-tab="paddocks">Paddocks</button>
+    <button class="tab-btn" data-tab="expenses">Expenses</button>
+  </nav>
+</header>
+
+<main>
+  <div id="save-banner">Couldn't save — your device storage may be full or unavailable.</div>
+  <div id="main"></div>
+</main>
+
+<div id="modal-root"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
