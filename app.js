@@ -73,12 +73,20 @@ function spendByCategory() {
 
 // ---------- Mutations ----------
 function addPaddock(p) { state.paddocks.push({ id: uid(), ...p }); saveState(); render(); }
+function updatePaddock(id, changes) {
+  state.paddocks = state.paddocks.map((p) => (p.id === id ? { ...p, ...changes } : p));
+  saveState(); render();
+}
 function deletePaddock(id) {
   state.paddocks = state.paddocks.filter((p) => p.id !== id);
   state.expenses = state.expenses.filter((e) => e.paddockId !== id);
   saveState(); render();
 }
 function addExpense(e) { state.expenses.push({ id: uid(), ...e }); saveState(); render(); }
+function updateExpense(id, changes) {
+  state.expenses = state.expenses.map((e) => (e.id === id ? { ...e, ...changes } : e));
+  saveState(); render();
+}
 function deleteExpense(id) { state.expenses = state.expenses.filter((e) => e.id !== id); saveState(); render(); }
 
 // ---------- Rendering ----------
@@ -192,7 +200,7 @@ function renderPaddocks() {
   if (state.paddocks.length === 0) return header + emptyState("No paddocks recorded. Add your first one to begin allocating costs.");
   const sbp = spendByPaddock();
   const rows = state.paddocks.map((p) => `
-    <div class="card" style="display:flex;align-items:center;justify-content:space-between;padding:16px;">
+    <div class="card edit-paddock" data-id="${p.id}" style="display:flex;align-items:center;justify-content:space-between;padding:16px;cursor:pointer;">
       <div style="display:flex;align-items:center;gap:12px;">
         <div style="width:10px;height:10px;border-radius:2px;background:${CROP_COLOR[p.crop]};"></div>
         <div>
@@ -230,7 +238,7 @@ function renderExpenses() {
     const p = state.paddocks.find((pp) => pp.id === e.paddockId);
     const exGst = Number(e.amountExGst || 0);
     const gst = exGst * GST_RATE;
-    return `<tr>
+    return `<tr class="edit-expense" data-id="${e.id}" style="cursor:pointer;">
       <td>${fmtDate(e.date)}</td>
       <td>${esc(p ? p.name : "—")}</td>
       <td>${esc(e.category)}</td>
@@ -254,19 +262,20 @@ function renderExpenses() {
 }
 
 // ---------- Modals ----------
-function openPaddockModal() {
+function openPaddockModal(existing) {
+  const isEdit = !!existing;
   document.getElementById("modal-root").innerHTML = `
     <div class="modal-overlay" id="overlay">
       <div class="modal" onclick="event.stopPropagation()">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
-          <div style="font-family:var(--display-font);font-size:19px;">Add paddock</div>
+          <div style="font-family:var(--display-font);font-size:19px;">${isEdit ? "Edit paddock" : "Add paddock"}</div>
           <button class="icon-btn" id="close-modal">✕</button>
         </div>
         <div style="display:grid;gap:14px;">
-          <label class="label">Name<input class="field" id="p-name" placeholder="e.g. Home Block" /></label>
-          <label class="label">Hectares<input class="field" id="p-ha" type="number" min="0" step="0.1" placeholder="e.g. 24.5" /></label>
-          <label class="label">Crop<select class="field" id="p-crop">${cropOptions(CROP_TYPES[0].name)}</select></label>
-          <button class="btn-primary" id="save-paddock">Save paddock</button>
+          <label class="label">Name<input class="field" id="p-name" placeholder="e.g. Home Block" value="${isEdit ? esc(existing.name) : ""}" /></label>
+          <label class="label">Hectares<input class="field" id="p-ha" type="number" min="0" step="0.1" placeholder="e.g. 24.5" value="${isEdit ? existing.hectares : ""}" /></label>
+          <label class="label">Crop<select class="field" id="p-crop">${cropOptions(isEdit ? existing.crop : CROP_TYPES[0].name)}</select></label>
+          <button class="btn-primary" id="save-paddock">${isEdit ? "Save changes" : "Save paddock"}</button>
         </div>
       </div>
     </div>`;
@@ -277,30 +286,35 @@ function openPaddockModal() {
     const hectares = Number(document.getElementById("p-ha").value);
     const crop = document.getElementById("p-crop").value;
     if (!name || !hectares) return;
-    addPaddock({ name, hectares, crop });
+    if (isEdit) updatePaddock(existing.id, { name, hectares, crop });
+    else addPaddock({ name, hectares, crop });
     closeModal();
   });
 }
 
-function openExpenseModal() {
+function openExpenseModal(existing) {
+  const isEdit = !!existing;
   const today = new Date().toISOString().slice(0, 10);
+  const startAmount = isEdit ? existing.amountExGst : "";
   document.getElementById("modal-root").innerHTML = `
     <div class="modal-overlay" id="overlay">
       <div class="modal" onclick="event.stopPropagation()">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
-          <div style="font-family:var(--display-font);font-size:19px;">Add expense</div>
+          <div style="font-family:var(--display-font);font-size:19px;">${isEdit ? "Edit expense" : "Add expense"}</div>
           <button class="icon-btn" id="close-modal">✕</button>
         </div>
         <div style="display:grid;gap:14px;">
-          <label class="label">Paddock<select class="field" id="e-paddock">${paddockOptions(state.paddocks[0]?.id)}</select></label>
+          <label class="label">Paddock<select class="field" id="e-paddock">${paddockOptions(isEdit ? existing.paddockId : state.paddocks[0]?.id)}</select></label>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-            <label class="label">Date<input class="field" id="e-date" type="date" value="${today}" /></label>
-            <label class="label">Category<select class="field" id="e-cat">${catOptions(EXPENSE_CATEGORIES[0])}</select></label>
+            <label class="label">Date<input class="field" id="e-date" type="date" value="${isEdit ? existing.date : today}" /></label>
+            <label class="label">Category<select class="field" id="e-cat">${catOptions(isEdit ? existing.category : EXPENSE_CATEGORIES[0])}</select></label>
           </div>
-          <label class="label">Amount (excl. GST, NZD)<input class="field" id="e-amount" type="number" min="0" step="0.01" placeholder="0.00" /></label>
-          <div id="gst-preview" style="font-family:var(--data-font);font-size:12px;color:#8A8578;display:none;justify-content:space-between;"></div>
-          <label class="label">Notes<input class="field" id="e-notes" placeholder="Optional" /></label>
-          <button class="btn-primary" id="save-expense">Save expense</button>
+          <label class="label">Amount (excl. GST, NZD)<input class="field" id="e-amount" type="number" min="0" step="0.01" placeholder="0.00" value="${startAmount}" /></label>
+          <div id="gst-preview" style="font-family:var(--data-font);font-size:12px;color:#8A8578;display:${startAmount ? "flex" : "none"};justify-content:space-between;">
+            ${startAmount ? `<span>GST (15%): ${fmtMoney(startAmount * GST_RATE)}</span><span>Total: ${fmtMoney(startAmount * (1 + GST_RATE))}</span>` : ""}
+          </div>
+          <label class="label">Notes<input class="field" id="e-notes" placeholder="Optional" value="${isEdit ? esc(existing.notes || "") : ""}" /></label>
+          <button class="btn-primary" id="save-expense">${isEdit ? "Save changes" : "Save expense"}</button>
         </div>
       </div>
     </div>`;
@@ -324,7 +338,8 @@ function openExpenseModal() {
     const amountExGst = Number(document.getElementById("e-amount").value);
     const notes = document.getElementById("e-notes").value.trim();
     if (!paddockId || !amountExGst) return;
-    addExpense({ paddockId, date, category, amountExGst, notes });
+    if (isEdit) updateExpense(existing.id, { paddockId, date, category, amountExGst, notes });
+    else addExpense({ paddockId, date, category, amountExGst, notes });
     closeModal();
   });
 }
@@ -334,15 +349,33 @@ function closeModal() { document.getElementById("modal-root").innerHTML = ""; }
 // ---------- Event wiring ----------
 function attachMainListeners() {
   const addPaddockBtn = document.getElementById("add-paddock-btn");
-  if (addPaddockBtn) addPaddockBtn.addEventListener("click", openPaddockModal);
+  if (addPaddockBtn) addPaddockBtn.addEventListener("click", () => openPaddockModal());
   const addExpenseBtn = document.getElementById("add-expense-btn");
-  if (addExpenseBtn) addExpenseBtn.addEventListener("click", openExpenseModal);
+  if (addExpenseBtn) addExpenseBtn.addEventListener("click", () => openExpenseModal());
   const filterSel = document.getElementById("filter-paddock");
   if (filterSel) filterSel.addEventListener("change", (e) => { filterPaddock = e.target.value; render(); });
+
   document.querySelectorAll(".delete-paddock").forEach((btn) =>
-    btn.addEventListener("click", () => { if (confirm("Delete this paddock and its expenses?")) deletePaddock(btn.dataset.id); }));
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      if (confirm("Delete this paddock and its expenses?")) deletePaddock(btn.dataset.id);
+    }));
+  document.querySelectorAll(".edit-paddock").forEach((row) =>
+    row.addEventListener("click", () => {
+      const p = state.paddocks.find((pp) => pp.id === row.dataset.id);
+      if (p) openPaddockModal(p);
+    }));
+
   document.querySelectorAll(".delete-expense").forEach((btn) =>
-    btn.addEventListener("click", () => deleteExpense(btn.dataset.id)));
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      deleteExpense(btn.dataset.id);
+    }));
+  document.querySelectorAll(".edit-expense").forEach((row) =>
+    row.addEventListener("click", () => {
+      const e = state.expenses.find((ee) => ee.id === row.dataset.id);
+      if (e) openExpenseModal(e);
+    }));
 }
 
 document.querySelectorAll(".tab-btn").forEach((btn) => {
