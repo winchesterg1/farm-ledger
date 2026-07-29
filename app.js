@@ -14,8 +14,8 @@ const CROP_TYPES = [
 const CROP_COLOR = Object.fromEntries(CROP_TYPES.map((c) => [c.name, c.color]));
 
 const EXPENSE_CATEGORIES = [
-  "Seed", "Fertiliser", "Chemical/Spray", "Fuel", "Contractor",
-  "Repairs & Maintenance", "Freight", "Other",
+  "Seed", "Fertiliser", "Nitrogen", "Chemical/Spray", "Irrigation", "Fuel", "Contractor",
+  "Harvesting", "Repairs & Maintenance", "Freight", "Other",
 ];
 
 const GST_RATE = 0.15;
